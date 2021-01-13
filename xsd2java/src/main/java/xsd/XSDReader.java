@@ -5,9 +5,7 @@ import cn.hutool.core.util.StrUtil;
 import org.dom4j.*;
 import org.dom4j.io.SAXReader;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -38,12 +36,9 @@ public class XSDReader {
      * @throws Exception
      */
 
-//    public List<XSDNode> paserXSD(String xsd) throws Exception {
-    public List<ClassNode> paserXSD(String xsd) throws Exception {
+    public List<ClassNode> paserXSD(String xsd, String taxMLPublicPath) throws Exception {
 
         SAXReader saxReader = new SAXReader();
-
-        // ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(xsd.getBytes(BaseConstants.XM LENCODING));
 
         Document doc = saxReader.read(xsd);
 
@@ -60,7 +55,6 @@ public class XSDReader {
             }
         } else {
             basePath = "//" + XMLConstants.XSD_DEFAULT_NAMESPACE + ":element[@name='" + XMLConstants.MESSAGE + "']";
-//            basePath = "//" + XMLConstants.XSD_DEFAULT_NAMESPACE + ":complexType[@name='" + XMLConstants.MESSAGE + "']";
             dataElement = (Element) element.selectSingleNode(basePath);
         }
 
@@ -70,9 +64,8 @@ public class XSDReader {
         } else {
             elementPath = "//" + XMLConstants.XSD_DEFAULT_NAMESPACE + ":element";
         }
-
-        String filePath = "/Users/zcqshine/Downloads/test/TaxMLPublic.xsd";
-        map = ReadFile.read(filePath);
+        
+        map = ReadFile.read(taxMLPublicPath);
 
         String complexTypeXpath =  elementPath + "[@name='" + XMLConstants.MESSAGE + "']" + "/" + XMLConstants.XSD_DEFAULT_NAMESPACE + ":complexType";
         List<Node> complexNodes = element.selectNodes(complexTypeXpath);
@@ -83,8 +76,6 @@ public class XSDReader {
             }
         }
         
-//        paseData(dataElement, "//", elementPath, "//");
-
         return classNodes;
 
     }
@@ -124,10 +115,13 @@ public class XSDReader {
                     String nodeType = type.getText();
                     String typeStr = map.get(nodeType);
                     if (typeStr != null){
-                        xsdNode.setType(map.get(nodeType));
-                    } else {
-                        xsdNode.setType(StrUtil.upperFirst(nodeType));
-                    }
+                        if (map.get(nodeType) != null){
+                            nodeType = map.get(nodeType);
+                        }
+                    } 
+                    xsdNode.setType(StrUtil.upperFirst(nodeType));
+                } else {
+                    xsdNode.setType(StrUtil.upperFirst(nodeName));
                 }
 
                 children.add(xsdNode);
@@ -202,7 +196,17 @@ public class XSDReader {
             if (type != null) {
                 nodeType = type.getText();
                 baseName = map.get(nodeType);
-            } 
+                System.out.println(baseName);
+                if (StrUtil.isBlank(baseName)){
+                    baseName = nodeName;
+                    System.out.println(nodeName);
+                }
+            } else {
+                System.out.println(nodeName);
+                baseName = nodeName;
+            }
+
+            baseName = StrUtil.upperFirst(baseName);
             
             xsdNode.setName(nodeName);
             xsdNode.setXPath(xPath);
@@ -217,78 +221,82 @@ public class XSDReader {
     public static void main(String[] args) {
 
         try {
-            String realPath = "/Users/zcqshine/Documents/共治物联/GT3-ZJ-金税三期标准服务清册_V2.48/附录报文/核心征管业务/申报征收/申报/HXZG_SB_10071/TaxMLBd_061015038_V1.0.xsd";
-
+            //转换后的文件输出目录
+            String dicPath = "/Users/zcqshine/Downloads/test/";
+            //要转换的xsd文件
+            String realPath = "/Users/zcqshine/Documents/云盘文件/开发公共文档/GT3-ZJ-金税三期标准服务清册_V2.48_fix01/附录报文/核心征管业务/02申报征收/HXZG_SB_10071/TaxMLBd_061015044_V1.0.xsd";
+            //TaxMLPublic文件路径
+            String taxMLPublicPath = "/Users/zcqshine/Downloads/test/TaxMLPublic.xsd";
             XSDReader xsdReader = new XSDReader();
 
-            List<ClassNode> nodes = xsdReader.paserXSD(realPath);
+            String tmpPath = xsdReader.editXsd(realPath, dicPath);
+            
+            if (tmpPath != null){
+                List<ClassNode> nodes = xsdReader.paserXSD(tmpPath,taxMLPublicPath);
 
-            String fileName = realPath.substring(realPath.lastIndexOf("/")+1, realPath.lastIndexOf("."));
-//            System.out.println(fileName);
-            
-            String outPutPath = "/Users/zcqshine/Downloads/test/" + fileName + ".txt";
-            
-            File file = new File(outPutPath);
-            FileOutputStream fos = null;
-            if (!file.exists()){
-                file.createNewFile();
-                fos = new FileOutputStream(file);
-            }else {
-                fos = new FileOutputStream(file);
-            }
-            try (OutputStreamWriter osw = new OutputStreamWriter(fos, "UTF-8");){
-                for (ClassNode node : nodes) {
-                    osw.write(node.toString() + "\n" + "\n");
+                String fileName = realPath.substring(realPath.lastIndexOf(File.separator)+1, realPath.lastIndexOf("."));
+
+                String outPutPath = dicPath + fileName + ".txt";
+
+                File file = new File(outPutPath);
+                FileOutputStream fos = null;
+                if (!file.exists()){
+                    file.createNewFile();
+                    fos = new FileOutputStream(file);
+                }else {
+                    fos = new FileOutputStream(file);
                 }
+                try (OutputStreamWriter osw = new OutputStreamWriter(fos, "UTF-8");){
+                    for (ClassNode node : nodes) {
+                        osw.write(node.toString() + "\n" + "\n");
+                    }
+                }
+                new File(tmpPath).delete();
+            } else {
+                System.out.println("xsd编辑后的临时路径为null");
             }
-
-
+            
+            
         } catch (Exception ex){
-
             ex.printStackTrace();
 
         }
-
     }
-
-
-//    public static void main(String[] args) throws DocumentException {
-//        SAXReader reader = new SAXReader();
-//        Document document = reader.read("/Users/zcqshine/Downloads/test.xsd");
-//
-//        Element root = document.getRootElement();
-//        Node rootNode = root.selectSingleNode("//xs:complexType");
-//
-//        Iterator iterator = root.elementIterator();
-//
-//
-//        for (Iterator i = root.elementIterator(); i.hasNext();){
-//            Element element = (Element) i.next();
-//            Node node = element.selectSingleNode("//xs:annotation");
-//            Node documentation = node.selectSingleNode("//xs:documentation");
-//            System.out.println(documentation.getText());
-//
-//            List<Element> elementList = element.elements();
-//
-//            List<Node> nodes = element.selectNodes("//xs:sequence");
-//
-//            List<Node> contents = element.content();
-//
-//            if (contents != null){
-//                for (Node content : contents) {
-//                    if (content.matches("/xs:schema/xs:complexType/xs:sequence")){
-//                        Node node1 = content.selectSingleNode("//xs:element");
-//
-//                        System.out.println(node1.selectObject("//xs:element[@name='name']"));
-//
-//                    }
-//                }
-//            }
-//
-////            System.out.println(element.getQName());
-////            Attribute attribute = element.attribute(0);
-////            System.out.println(attribute.getData());
-//        }
-//
-//    }
+    
+    private String editXsd(String path, String dicPath){
+        try {
+            //临时文件
+            File outFile = File.createTempFile("tmp", ".xsd", new File(dicPath));
+            try (
+                    //输入
+                    FileInputStream fis = new FileInputStream(path);
+                    BufferedReader in = new BufferedReader(new InputStreamReader(fis));
+                    //输出
+                    FileOutputStream fos = new FileOutputStream(outFile);
+                    PrintWriter out = new PrintWriter(fos);
+                    ){
+                //保存一行数据
+                String thisLine;
+                //从行号1开始
+                int i = 1;
+                while ((thisLine = in.readLine()) != null){
+                    //在第一个xs:complexType行上插入行
+                    if (i == 1 && thisLine != null && thisLine.contains("xs:complexType")){
+                        out.println("<xs:element name=\"taxML\" type=\"taxDoc\">");
+                        i++;
+                    } else if (thisLine != null && thisLine.contains("</xs:schema>")){
+                        out.println("</xs:element>");
+                    } else if (thisLine != null && (thisLine.contains("xs:complexContent") || thisLine.contains("xs:extension")) ){
+                        continue;
+                    }
+                    out.println(thisLine);
+                }
+                out.flush();
+                return outFile.getPath();
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return null;
+    }
 }

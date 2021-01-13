@@ -1,5 +1,7 @@
 package xsd;
 
+import cn.hutool.core.util.StrUtil;
+
 import java.util.List;
 
 /**
@@ -43,7 +45,7 @@ public class ClassNode {
                 .append("\n")
                 .append("*/")
                 .append("\n")
-                .append("public class ").append(getClassName())
+                .append("public class ").append(StrUtil.upperFirst(getClassName()))
                 .append(" {\n");
         if (getXsdNodeList() != null){
             for (XSDNode node : getXsdNodeList()) {
